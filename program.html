@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        body {
+            background-color: #fffff3;
+        }
+
+        #top-bar {
+            background-color: #a5a5a5;
+            margin-left: 30%;
+            margin-right: 30%;
+            border-radius: 10px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #00D9C0;
+            font-family: 'Courier New';
+        }
+
+        #images {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+            padding: 20px;
+        }
+
+        #image-container {
+            position: relative;
+            overflow: hidden;
+            border-radius: 8px;
+        }
+
+        #images img {
+            width: 100%;
+            height: auto;
+            border-radius: 8px;
+            transition: transform 0.2s ease;
+        }
+
+        #images img:hover {
+            transform: scale(1.5);
+        }
+
+        input {
+            display: block;
+            width: 20%;
+            border-color: #f6f4f4;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        #search-button {
+            padding: 10px 20px;
+            border-radius: 10px;
+            border: none;
+            background-color: #00D9C0;
+            color: white;
+            cursor: pointer;
+            margin-left: 1%;
+        }
+
+        #inputAndButton {
+            display: flex;
+            justify-content: center;
+            margin: 0 auto;
+        }
+
+        .image-info {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            text-align: center;
+            padding: 15px;
+            opacity: 0;
+            display: none;
+            transition: opacity 0.3s ease;
+            z-index: 1000;
+        }
+
+        .image-container:hover .image-info {
+            opacity: 1;
+            display: block;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.8);
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            position: relative;
+            margin: auto;
+            padding: 20px;
+            max-width: 90%;
+            max-height: 90%;
+            background-color: #fffff3;
+            border-radius: 10px;
+            text-align: center;
+            overflow: hidden;
+        }
+
+        .modal img {
+            width: 100%;
+            height: auto;
+            max-width: 100%;
+            max-height: calc(100vh - 160px);
+            border-radius: 10px;
+            display: block;
+            margin: 0 auto;
+        }
+
+        .modal-info {
+            padding: 10px;
+            text-align: left;
+        }
+
+        .close-button {
+            position: absolute;
+            top: 10px;
+            right: 20px;
+            font-size: 24px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="top-bar">
+        <h1>Photo gallery of <span id="query-title"></span></h1>
+    </div>
+    <div id="inputAndButton">
+        <input id="query-input" type="text" placeholder="Enter a key word, for example: cat, panorama, sea...">
+        <button id="search-button" onclick="startNewSearch()">Search</button>
+    </div>
+    <div id="images"></div>
+
+    <div id="image-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <img id="modal-image" src="" alt="">
+            <div class="modal-info">
+                <p id="modal-description"></p>
+                <p id="modal-author"></p>
+            </div>
+        </div>
+    </div>
+</body>
+<script>
+    let page = 1;
+    const perPage = 30;
+    let loading = false;
+    const accessKey = '88uh2-DrVhSwL4-yusrAePmSSQ0uU4uTZ6ettVgqBpg';
+
+    function startNewSearch() {
+        userQuery = document.getElementById("query-input").value.trim();
+
+        if (userQuery) {
+            document.getElementById('images').innerHTML = '';
+            page = 1;
+            fetchMoreImages(userQuery);
+        }
+    }
+
+    function fetchMoreImages(query) {
+        if (loading) return;
+        loading = true;
+        if (query) {
+            userQuery = query;
+        }
+        page++
+
+        const url = `https://api.unsplash.com/search/photos?query=${query}&per_page=${perPage}&page=${page}&client_id=${accessKey}`;
+
+        document.getElementById('query-title').innerText = userQuery;
+
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                const images = document.getElementById('images');
+                data.results.forEach(photo => {
+                    const container = document.createElement('div');
+                    container.classList.add('image-container');
+
+                    const img = document.createElement('img');
+                    img.src = photo.urls.small;
+                    img.alt = photo.alt_description;
+
+                    img.addEventListener('mouseenter', () => {
+                        showImageInfo(photo.alt_description, photo.user.name);
+                    });
+
+                    img.addEventListener('mouseleave', () => {
+                        hideImageInfo();
+                    });
+
+                    img.addEventListener('click', () => {
+                        openModal(photo.urls.full, photo.alt_description, photo.user.name);
+                    });
+
+                    container.appendChild(img);
+                    images.appendChild(container);
+                });
+                page++;
+                loading = false;
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                loading = false;
+            });
+    }
+
+    function openModal(imageSrc, description, author) {
+        const modal = document.getElementById('image-modal');
+        const modalImage = document.getElementById('modal-image');
+        const modalDescription = document.getElementById('modal-description');
+        const modalAuthor = document.getElementById('modal-author');
+
+        modal.style.display = 'flex';
+        modalImage.src = imageSrc;
+        modalDescription.innerText = description || `No description available by ${author}`;
+        modalAuthor.innerText = `by ${author}`;
+
+        modalImage.onload = () => {
+            const imgWidth = modalImage.naturalWidth;
+            const imgHeight = modalImage.naturalHeight;
+
+            if (imgWidth > window.innerWidth || imgHeight > window.innerHeight) {
+                modalImage.style.width = 'auto';
+                modalImage.style.height = 'auto';
+                modalImage.style.maxWidth = '90%';
+                modalImage.style.maxHeight = 'calc(100vh - 160px)';
+            }
+        };
+    }
+
+    function closeModal() {
+        const modal = document.getElementById('image-modal');
+        modal.style.display = 'none';
+    }
+
+    document.querySelector('.close-button').addEventListener('click', closeModal);
+
+    window.addEventListener('click', (event) => {
+        const modal = document.getElementById('image-modal');
+
+        if (event.target === modal) {
+            closeModal();
+        }
+    })
+
+    function showImageInfo(description, author) {
+        let infoDiv = document.querySelector('.image-info');
+        if (!infoDiv) {
+            infoDiv = document.createElement('div');
+            infoDiv.classList.add('image-info');
+            document.body.appendChild(infoDiv);
+        }
+        infoDiv.innerHTML = `<p>${description || 'No description'} by ${author}</p>`;
+        infoDiv.style.opacity = '1';
+        infoDiv.style.display = 'block';
+    }
+
+    function hideImageInfo() {
+        const infoDiv = document.querySelector('.image-info');
+        if (infoDiv) {
+            infoDiv.style.opacity = '0';
+            infoDiv.style.display = 'none';
+        }
+    }
+
+    window.addEventListener('keydown', (event) => {
+        if (document.getElementById('image-modal').style.display === 'flex') {
+            if (event.key === 'ArrowLeft') {
+                showPreviousImage();
+            } else if (event.key === 'ArrowRight') {
+                showNextImage();
+            }
+        }
+    });
+
+    function showPreviousImage() {
+        if (currentImageIndex > 0) {
+            currentImageIndex--;
+            openModal();
+        }
+    }
+
+    function showNextImage() {
+        if (currentImageIndex < imagesData.length - 1) {
+            currentImageIndex++;
+            openModal();
+        }
+    }
+
+    function handleScroll() {
+        if (isAtBottom()) {
+            fetchMoreImages(userQuery);
+        }
+    }
+
+    function isAtBottom() {
+        return window.innerHeight + window.scrollY >= document.body.offsetHeight;
+    }
+
+    window.addEventListener('scroll', handleScroll);
+
+    const defaultQueries = ["fields", "desert", "birds", "cliffs", "ocean", "city center", "panorama", "sky", "streets", "cats", "technology"]
+    let randomQuery = defaultQueries[Math.floor(Math.random() * defaultQueries.length)]
+
+    document.getElementById('query-input').value = randomQuery;
+    fetchMoreImages(randomQuery);
+</script>
+
+</html>
